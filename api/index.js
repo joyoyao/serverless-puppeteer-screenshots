@@ -1,7 +1,10 @@
 import chromium from "chrome-aws-lambda";
 
+
+
 export default async function handler(req, res) {
-  const { url } = req.query;
+  const { url, width,  height } = req.query;
+   try {
   const browser = await chromium.puppeteer.launch({
     args: chromium.args,
     defaultViewport: chromium.defaultViewport,
@@ -15,12 +18,16 @@ export default async function handler(req, res) {
 
   await page.goto(url, { waitUntil: "networkidle0" });
 
-  const pdf = await page.pdf({ format: "A4" });
+  await page.setViewport({ width: Number(width) || 1280, height: Number(height) || 720, deviceScaleFactor: 2 });
+  const file = await page.screenshot();
 
   await browser?.close();
 
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Accept-Ranges", "bytes");
-  res.setHeader("Content-Disposition", `inline; filename=file.pdf`);
-  res.send(pdf);
+  res.setHeader("Content-Type", "image/png");
+  res.setHeader("Cache-Control", "public, immutable, no-transform, s-maxage=86400, max-age=86400");
+  res.status(200).end(file);
+       } catch (error) {
+    console.error(error);
+    res.status(500).send("The server encountered an error. You may have inputted an invalid query.");
+  }
 }
